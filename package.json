@@ -1,0 +1,12 @@
+{
+  "name": "whatsapp_bot",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "index.js",
+  "author": "Nicolas <nicolasgabrip@gmail.com>",
+  "license": "MIT",
+  "dependencies": {
+    "@whiskeysockets/baileys": "^6.7.5",
+    "qrcode-terminal": "^0.12.0"
+  }
+}
