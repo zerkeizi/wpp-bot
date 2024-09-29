@@ -6,3 +6,4 @@ baileys_auth_info
 # Files
 .env
 .vscode
+wa-logs.txt
