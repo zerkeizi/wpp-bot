@@ -1,0 +1,32 @@
+<!-- views/index.ejs -->
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>I just wanna curtir</title>
+</head>
+
+<body>
+  <h1> <%= isConnected ? 'CONECTADO' : 'DESCONECTADO' %> </h1>
+  <% if (!isConnected) { %>
+    <img src="<%= `${qrCode}` %>" alt="qr" id="qrcode" style="width: 250px;">
+    <% } else { %>
+  <% } %>
+</body>
+<script>
+    function kill() {
+      console.log('haha')
+      fetch("http://localhost:3000/kill", {
+        method: "POST",
+        headers: {
+          "Content-type": "application/json; charset=UTF-8"
+        }
+      })
+      .then(response => response.json())
+      .then(json => console.log('json', json))
+    }
+
+</script>
+</html>

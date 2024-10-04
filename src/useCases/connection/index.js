@@ -7,13 +7,22 @@ import makeWASocket, {
 } from '@whiskeysockets/baileys';
 import P from 'pino'
 import messageResolver from './../messager/index.js'
+import fs from 'fs'
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { killSession } from './killSession.js';
+
+export let socketState = {
+	user: null,
+	qr: ''
+}
 
 const logger = P({ timestamp: () => `,"time":"${new Date().toJSON()}"` }, P.destination('./wa-logs.txt'))
 logger.level = 'trace'
 
 // start a connection
 export const connectToWhatsApp = async () => {
-	const { state, saveCreds } = await useMultiFileAuthState('baileys_auth_info')
+	const { state, saveCreds } = await useMultiFileAuthState('sess_auth_info')
 
 	// fetch latest version of WA Web
 	const { version, isLatest } = await fetchLatestBaileysVersion()
@@ -38,18 +47,22 @@ export const connectToWhatsApp = async () => {
 			// maybe it closed, or we received all offline message or connection opened
 			if (events['connection.update']) {
 				const update = events['connection.update']
-				const { connection, lastDisconnect } = update
+				const { connection, lastDisconnect, qr } = update
+				socketState.qr = qr
+
 				if (connection === 'close') {
 					// reconnect if not logged out
 					if ((lastDisconnect?.error)?.output?.statusCode !== DisconnectReason.loggedOut) {
 						connectToWhatsApp()
 					} else {
-						console.log('Connection closed. You are logged out.')
+						killSession()
+						socketState = { user: null, qr: ''}
 					}
 				}
 			}
 
 			if (events['creds.update']) {
+				socketState.user = sock?.user
         await saveCreds()
       }
 
@@ -60,4 +73,5 @@ export const connectToWhatsApp = async () => {
       
 		}
 	)
+
 }
