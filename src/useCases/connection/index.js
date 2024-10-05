@@ -10,12 +10,7 @@ import messageResolver from './../messager/index.js'
 import fs from 'fs'
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { killSession } from './killSession.js';
 import { emitter } from './../../server.js'
-export let socketState = {
-	user: null,
-	qr: ''
-}
 
 const logger = P({ timestamp: () => `,"time":"${new Date().toJSON()}"` }, P.destination('./wa-logs.txt'))
 logger.level = 'trace'
@@ -43,32 +38,25 @@ export const connectToWhatsApp = async () => {
   sock.ev.process(
 		// events is a map for event name => event data
 		async (events) => {
-			console.log('@@@@@@@@@@@@@@@@@@')
 			console.log('Triggering event', events)
-			console.log('@@@@@@@@@@@@@@@@@@')
 			// something about the connection changed
 			// maybe it closed, or we received all offline message or connection opened
 			if (events['connection.update']) {
 				const update = events['connection.update']
 				const { connection, lastDisconnect, qr, isOnline } = update
-				if (!isOnline && qr) {
-					emitter.updateQR(qr)
-				}
-				socketState.qr = qr
+				emitter.updateClient({ connection, qr, isOnline })
 
 				if (connection === 'close') {
 					// reconnect if not logged out
 					if ((lastDisconnect?.error)?.output?.statusCode !== DisconnectReason.loggedOut) {
 						connectToWhatsApp()
 					} else {
-						killSession()
-						socketState = { user: null, qr: ''}
+						emitter.killWPSession()
 					}
 				}
 			}
 
 			if (events['creds.update']) {
-				socketState.user = sock?.user
         await saveCreds()
       }
 

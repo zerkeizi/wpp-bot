@@ -1,26 +1,26 @@
 // @ts-nocheck
 import express from 'express';
 import http from 'http'
-import { connectToWhatsApp, socketState } from './useCases/connection/index.js';
+import { connectToWhatsApp } from './useCases/connection/index.js';
 import path from 'path';
 import { fileURLToPath } from 'url'
 import qrcode from 'qrcode'
-import { killSession } from './useCases/connection/killSession.js';
 import { Server } from "socket.io";
+import fs from 'fs'
 
 // Init server config
 const PORT = process.env.PORT || 8080;
 const app = express();
 const server = http.createServer(app);
 // app.use(express.json());
+app.use(express.static('public'))
 
 const io = new Server(server, {
   // options
   cors: { origin: "*" }
 });
 
-// Connect websocket lib instance
-await connectToWhatsApp()
+// await connectToWhatsApp()
 
 // Client routes
 const __root = path.dirname(fileURLToPath(import.meta.url))
@@ -30,20 +30,31 @@ app.get("/", async (req, res) => {
 })
 
 app.post("/kill", async (req, res) => {
-  console.log('hit me')
-  killSession()
+  killWPSession()
 })
 
+app.post("/connect", async (req, res) => {
+  // Connect websocket lib instance
+  await connectToWhatsApp()
+})
 
-let globalSocket = null
+// GLOBALS
+let lastestQRCode = undefined
+let clientSocket = null
+
 // Establish WS connections
 io.on('connection', (socket) => {
-  globalSocket = socket
+  clientSocket = socket
   console.log('user connected');
- 
+
+  socket.on('qr.first', () => {
+    updateClient({ qr: lastestQRCode })
+  });
+
   socket.on('disconnect', () => {
     console.log('user disconnected');
   });
+
 })
 
 // Server running
@@ -51,16 +62,38 @@ server.listen(PORT, () => {
   console.log(`Servidor rodando na porta ${PORT}`);
 });
 
-const updateQR = (content) => {
-  if (globalSocket) {
-    qrcode.toDataURL(content || '', (err, url) => { 
-      if (url) {
-        globalSocket.emit('update.qr', url)
-      }
+const updateClient = (content) => {
+  // update global variables
+  if (content.qr != undefined) 
+    lastestQRCode = content?.qr
+
+  if (clientSocket) {
+    qrcode.toDataURL(lastestQRCode || '', (err, url) => { 
+      content.qr = url ?? undefined 
+      clientSocket.emit('qr.update', content)
     })
+  } else if (!existSession()) {
+    console.log('there is no session currently.')
   }
 }
 
-export const emitter = {
-  updateQR
+// # UTILS
+const __authCredDir = path.relative(process.cwd(), "sess_auth_info");
+
+// Check if there is an existent session directory
+const existSession = () => {
+  return fs.existsSync(__authCredDir)
 }
+
+// Kill session by deleting its directory
+const killWPSession = () => {
+  lastestQRCode = undefined
+  fs.rmSync(__authCredDir, { recursive: true, force: true });
+  console.log('Connection closed. You are logged out.')
+}
+
+export const emitter = {
+  updateClient,
+  killWPSession
+}
+

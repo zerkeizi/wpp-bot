@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script type="module" src="js/scripts.js"></script>
   <title>Document</title>
 </head>
 <body>
@@ -11,22 +12,59 @@
 </body>
 <script defer type="module">
   import { io } from "https://cdn.socket.io/4.7.5/socket.io.esm.min.js";
+  import { element2 } from "http://localhost:8080/js/scripts.js";
   const socket = io('ws://localhost:8080');
 
-  // const qrImg = document.getElementById("qrcode")
+  console.log(element2)
+  
+  socket.on('qr.update', (data) => {
+    console.log('update client...')
 
-  socket.on('update.qr', content => {
+    const status = JSON.parse(localStorage.getItem("status") || '{}')
+    status.connection = data.connection ?? status.connection
+    status.qr = data.qr ?? status.qr
+    status.isOnline = data.isOnline ?? status.isOnline
+    localStorage.setItem("status", JSON.stringify(status));
     // qrImg.setAttribute("src", { qr: content })
-    render({ qr: content })
+    render(status)
   })
 
   function render(props) {
+    console.log('Rendering...', props)
     const rootEl = document.getElementById("root")
     
-    if (props.qr) {
-      rootEl.child.innerHTML = `<img src="${props.qr}" alt="" srcset="">`
+    if (props.connection == "open") { // Connected
+      rootEl.innerHTML = "<p style='color: green'>Conectado</p>"
+    } else if (props.connection == "close") { // Closed
+      rootEl.innerHTML = 
+        `
+          <p style='color: black'>Conexão fechada</p>
+          <button type='button' onclick='reconnect()'>Reconnectar</button>
+        `
+    } else if (props.qr) { // Not connected / QR Ready
+      rootEl.innerHTML = `<img src="${props.qr}" alt="" srcset="">`
+    } else { // Not connected / QR Loading
+      rootEl.innerHTML = "<p style='color: blue'>Carregando QR Code...</p>"
     }
   }
+
+  function reconnect() {
+    console.log('Reconectando...')
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    if (localStorage.getItem("status") === null) {
+      const status = {
+        connection: null,
+        qr: null,
+        isOnline: null
+      }
+      console.log('status', status)
+      localStorage.setItem("status", JSON.stringify(status));
+    }
+    
+    socket.emit('qr.first')
+  }, false);
 
 </script>
 </html>
