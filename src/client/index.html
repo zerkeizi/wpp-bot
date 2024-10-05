@@ -12,11 +12,11 @@
 </body>
 <script defer type="module">
   import { io } from "https://cdn.socket.io/4.7.5/socket.io.esm.min.js";
-  import { element2 } from "http://localhost:8080/js/scripts.js";
+  import { components } from "http://localhost:8080/js/scripts.js";
   const socket = io('ws://localhost:8080');
 
-  console.log(element2)
   
+  console.log(components)
   socket.on('qr.update', (data) => {
     console.log('update client...')
 
@@ -32,24 +32,20 @@
   function render(props) {
     console.log('Rendering...', props)
     const rootEl = document.getElementById("root")
-    
-    if (props.connection == "open") { // Connected
-      rootEl.innerHTML = "<p style='color: green'>Conectado</p>"
-    } else if (props.connection == "close") { // Closed
-      rootEl.innerHTML = 
-        `
-          <p style='color: black'>Conexão fechada</p>
-          <button type='button' onclick='reconnect()'>Reconnectar</button>
-        `
-    } else if (props.qr) { // Not connected / QR Ready
-      rootEl.innerHTML = `<img src="${props.qr}" alt="" srcset="">`
-    } else { // Not connected / QR Loading
-      rootEl.innerHTML = "<p style='color: blue'>Carregando QR Code...</p>"
-    }
-  }
-
-  function reconnect() {
-    console.log('Reconectando...')
+    rootEl.appendChild(components.connected)
+    // if (props.connection == "open") { // Connected
+    //   rootEl.innerHTML = "<p style='color: green'>Conectado</p>"
+    // } else if (props.connection == "close") { // Closed
+    //   rootEl.innerHTML = 
+    //     `
+    //       <p style='color: black'>Conexão fechada</p>
+    //       <button type='button' onclick='reconnect()'>Reconnectar</button>
+    //     `
+    // } else if (props.qr) { // Not connected / QR Ready
+    //   rootEl.innerHTML = `<img src="${props.qr}" alt="" srcset="">`
+    // } else { // Not connected / QR Loading
+    //   rootEl.innerHTML = "<p style='color: blue'>Carregando QR Code...</p>"
+    // }
   }
 
   document.addEventListener('DOMContentLoaded', () => {
