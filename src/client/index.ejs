@@ -14,19 +14,23 @@
     <img src="<%= `${qrCode}` %>" alt="qr" id="qrcode" style="width: 250px;">
     <% } else { %>
   <% } %>
+  <button>Fire!</button>
 </body>
-<script>
-    function kill() {
-      console.log('haha')
-      fetch("http://localhost:3000/kill", {
-        method: "POST",
-        headers: {
-          "Content-type": "application/json; charset=UTF-8"
-        }
-      })
-      .then(response => response.json())
-      .then(json => console.log('json', json))
-    }
+<script defer type="module">
+  import { io } from "https://cdn.socket.io/4.7.5/socket.io.esm.min.js";
+  const socket = io('ws://localhost:8080');
 
+
+  const qrImg = document.getElementById("qrcode")
+
+  document.querySelector("button").onclick = () => {
+    console.log('says hi')
+    socket.emit('message', 'Hi!')
+  }
+
+  socket.on('update.qr', content => {
+    qrImg.setAttribute("src", content)
+  })
+  
 </script>
 </html>

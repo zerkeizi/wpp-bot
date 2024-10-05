@@ -5,6 +5,8 @@
   "author": "Nicolas <nicolasgabrip@gmail.com>",
   "main": "index.js",
   "scripts": {
+    "dev": "node-dev src/server.js",
+    "build": "node-dev src/server.js",
     "start": "node-dev src/server.js"
   },
   "dependencies": {

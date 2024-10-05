@@ -1,35 +1,32 @@
+// @ts-nocheck
 import express from 'express';
+import http from 'http'
 import { connectToWhatsApp, socketState } from './useCases/connection/index.js';
 import path from 'path';
 import { fileURLToPath } from 'url'
 import qrcode from 'qrcode'
 import { killSession } from './useCases/connection/killSession.js';
+import { Server } from "socket.io";
 
-// Init express
+// Init server config
+const PORT = process.env.PORT || 8080;
 const app = express();
-app.use(express.json());
+const server = http.createServer(app);
+// app.use(express.json());
 
-// Port configuration
-const PORT = process.env.PORT || 3000;
+const io = new Server(server, {
+  // options
+  cors: { origin: "*" }
+});
 
 // Connect websocket lib instance
 await connectToWhatsApp()
 
-// Set EJS as the view engine
-app.set('view engine', 'ejs')
-// Set views directory
-const __root = path.dirname(fileURLToPath(import.meta.url))
-app.set('views', path.join(__root, 'views'));
-
 // Client routes
+const __root = path.dirname(fileURLToPath(import.meta.url))
 app.get("/", async (req, res) => {
-  qrcode.toDataURL(socketState.qr || '', (err, url) => { 
-    const data = {
-      isConnected: !!socketState.user,
-      qrCode: url
-    }
-    res.render('index', data)
-  })
+  
+  res.sendFile('index.html', { root: path.join(__root, 'client') })
 })
 
 app.post("/kill", async (req, res) => {
@@ -37,6 +34,33 @@ app.post("/kill", async (req, res) => {
   killSession()
 })
 
-app.listen(PORT, () => {
+
+let globalSocket = null
+// Establish WS connections
+io.on('connection', (socket) => {
+  globalSocket = socket
+  console.log('user connected');
+ 
+  socket.on('disconnect', () => {
+    console.log('user disconnected');
+  });
+})
+
+// Server running
+server.listen(PORT, () => {
   console.log(`Servidor rodando na porta ${PORT}`);
 });
+
+const updateQR = (content) => {
+  if (globalSocket) {
+    qrcode.toDataURL(content || '', (err, url) => { 
+      if (url) {
+        globalSocket.emit('update.qr', url)
+      }
+    })
+  }
+}
+
+export const emitter = {
+  updateQR
+}
