@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <script type="module" src="js/scripts.js"></script>
+  <link rel="stylesheet" href="css/style.css">
   <title>Document</title>
 </head>
 <body>
@@ -16,7 +17,6 @@
   const socket = io('ws://localhost:8080');
 
   
-  console.log(components)
   socket.on('qr.update', (data) => {
     console.log('update client...')
 
@@ -32,20 +32,15 @@
   function render(props) {
     console.log('Rendering...', props)
     const rootEl = document.getElementById("root")
-    rootEl.appendChild(components.connected)
-    // if (props.connection == "open") { // Connected
-    //   rootEl.innerHTML = "<p style='color: green'>Conectado</p>"
-    // } else if (props.connection == "close") { // Closed
-    //   rootEl.innerHTML = 
-    //     `
-    //       <p style='color: black'>Conexão fechada</p>
-    //       <button type='button' onclick='reconnect()'>Reconnectar</button>
-    //     `
-    // } else if (props.qr) { // Not connected / QR Ready
-    //   rootEl.innerHTML = `<img src="${props.qr}" alt="" srcset="">`
-    // } else { // Not connected / QR Loading
-    //   rootEl.innerHTML = "<p style='color: blue'>Carregando QR Code...</p>"
-    // }
+    if (props.connection == "open") { // Connected
+      rootEl.replaceChildren(components.connected)
+    } else if (props.connection == "close") { // Closed
+      rootEl.replaceChildren(components.closed)
+    } else if (props.qr) { // Not connected / QR Ready
+      rootEl.innerHTML = `<img src="${props.qr}" alt="" srcset="">`
+    } else { // Not connected / QR Loading
+      rootEl.replaceChildren(components.connecting)
+    }
   }
 
   document.addEventListener('DOMContentLoaded', () => {

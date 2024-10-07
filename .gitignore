@@ -2,6 +2,7 @@
 node_modules
 dist
 baileys_auth_info
+sess_auth_info
 
 # Files
 .env
