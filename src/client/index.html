@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <script type="module" src="js/scripts.js"></script>
   <link rel="stylesheet" href="css/style.css">
-  <title>Document</title>
+  <title>Autozap ⚡</title>
 </head>
 <body>
   <div id="root">
@@ -13,32 +13,30 @@
 </body>
 <script defer type="module">
   import { io } from "https://cdn.socket.io/4.7.5/socket.io.esm.min.js";
-  import { components } from "http://localhost:8080/js/scripts.js";
-  const socket = io('ws://localhost:8080');
+  import { components } from "/js/scripts.js";
+
+  const socket = io('ws:///');
 
   
   socket.on('qr.update', (data) => {
-    console.log('update client...')
-
     const status = JSON.parse(localStorage.getItem("status") || '{}')
     status.connection = data.connection ?? status.connection
-    status.qr = data.qr ?? status.qr
+    status.qr = data.qr
     status.isOnline = data.isOnline ?? status.isOnline
     localStorage.setItem("status", JSON.stringify(status));
-    // qrImg.setAttribute("src", { qr: content })
     render(status)
   })
 
   function render(props) {
-    console.log('Rendering...', props)
+    console.log(props)
     const rootEl = document.getElementById("root")
     if (props.connection == "open") { // Connected
       rootEl.replaceChildren(components.connected)
     } else if (props.connection == "close") { // Closed
       rootEl.replaceChildren(components.closed)
-    } else if (props.qr) { // Not connected / QR Ready
+    } else if (props.connection == "connecting" && props.qr) { // Not connected / QR Ready
       rootEl.innerHTML = `<img src="${props.qr}" alt="" srcset="">`
-    } else { // Not connected / QR Loading
+    } else { // Connecting
       rootEl.replaceChildren(components.connecting)
     }
   }
@@ -50,7 +48,6 @@
         qr: null,
         isOnline: null
       }
-      console.log('status', status)
       localStorage.setItem("status", JSON.stringify(status));
     }
     

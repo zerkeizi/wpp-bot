@@ -43,8 +43,8 @@ export const connectToWhatsApp = async () => {
 			// maybe it closed, or we received all offline message or connection opened
 			if (events['connection.update']) {
 				const update = events['connection.update']
-				const { connection, lastDisconnect, qr, isOnline } = update
-				emitter.updateClient({ connection, qr, isOnline })
+				const { connection, lastDisconnect, qr, isOnline, isNewLogin } = update
+				emitter.updateClient({ connection, qr, isOnline, isNewLogin })
 
 				if (connection === 'close') {
 					// reconnect if not logged out

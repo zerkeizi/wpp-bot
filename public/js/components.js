@@ -20,11 +20,6 @@ const getConnectingEl = () => {
 }
 
 const getClosedEl = () => {
-  // rootEl.innerHTML = 
-  // `
-  //   <p style='color: black'>Conexão fechada</p>
-  //   <button type='button' onclick='reconnect()'>Reconnectar</button>
-  // `
   const el = document.createElement('div')
   const p = document.createElement('p')
   p.innerHTML = "Conexão fechada"
@@ -34,6 +29,13 @@ const getClosedEl = () => {
   button.innerHTML = "Reconectar"
   button.addEventListener("click", () => {
     console.log("reconnecting")
+    fetch("/reconnect", {
+      method: "POST",
+      body: "",
+      headers: {
+        "Content-type": "application/json; charset=UTF-8"
+      }
+    });
   })
 
   el.appendChild(p)

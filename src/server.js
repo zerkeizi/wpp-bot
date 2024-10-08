@@ -20,8 +20,6 @@ const io = new Server(server, {
   cors: { origin: "*" }
 });
 
-// await connectToWhatsApp()
-
 // Client routes
 const __root = path.dirname(fileURLToPath(import.meta.url))
 app.get("/", async (req, res) => {
@@ -33,7 +31,7 @@ app.post("/kill", async (req, res) => {
   killWPSession()
 })
 
-app.post("/connect", async (req, res) => {
+app.post("/reconnect", async (req, res) => {
   // Connect websocket lib instance
   await connectToWhatsApp()
 })
@@ -47,8 +45,15 @@ io.on('connection', (socket) => {
   clientSocket = socket
   console.log('user connected');
 
+  // Evento de abertura do client
   socket.on('qr.first', () => {
-    updateClient({ qr: lastestQRCode })
+    const clientFirstRenderValues = {}
+    clientFirstRenderValues.qr = lastestQRCode
+    if (!existSession()) {
+      console.log('there is no session currently.')
+      clientFirstRenderValues.connection = "close"
+    }
+    updateClient(clientFirstRenderValues)
   });
 
   socket.on('disconnect', () => {
@@ -64,18 +69,18 @@ server.listen(PORT, () => {
 
 const updateClient = (content) => {
   // update global variables
-  if (content.qr != undefined) 
-    lastestQRCode = content?.qr
+  lastestQRCode = content?.qr
 
   if (clientSocket) {
     qrcode.toDataURL(lastestQRCode || '', (err, url) => { 
       content.qr = url ?? undefined 
       clientSocket.emit('qr.update', content)
     })
-  } else if (!existSession()) {
-    console.log('there is no session currently.')
   }
 }
+
+// Start autozap instance
+await connectToWhatsApp()
 
 // # UTILS
 const __authCredDir = path.relative(process.cwd(), "sess_auth_info");
