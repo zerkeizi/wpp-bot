@@ -8,6 +8,9 @@ const COMMAND_NAME = "/pedido baianinho"
 const MESSAGE_TYPES = ['imageMessage', 'videoMessage']
 
 const messageResolver = async (sock, m) => {
+  console.log('@@@@ Mensagem recebida @@@@')
+  console.log(m)
+  console.log('@@@@@@@@@@@@@@@@@@@@@@@@@@@')
   if (m.type == "notify") {
     
     const messageData = m.messages[0]
