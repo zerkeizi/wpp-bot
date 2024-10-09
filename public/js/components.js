@@ -14,7 +14,7 @@ const getDisconnectedEl = () => {
 
 const getConnectingEl = () => {
   const el = document.createElement('p')
-  el.innerHTML = "Conectando..."
+  el.innerHTML = "connecting..."
   el.style.color = 'powderblue'
   return el
 }
@@ -22,11 +22,11 @@ const getConnectingEl = () => {
 const getClosedEl = () => {
   const el = document.createElement('div')
   const p = document.createElement('p')
-  p.innerHTML = "Conexão fechada"
+  p.innerHTML = "connection closed"
   p.style.color = '#ddd'
 
   const button = document.createElement('button')
-  button.innerHTML = "Reconectar"
+  button.innerHTML = "reconnect"
   button.addEventListener("click", () => {
     console.log("reconnecting")
     fetch("/reconnect", {
