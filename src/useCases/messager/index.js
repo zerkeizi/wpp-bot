@@ -3,7 +3,7 @@ import { downloadContentFromMessage,  } from '@whiskeysockets/baileys';
 import { createSticker, StickerTypes } from 'wa-sticker-formatter';
 import fs from 'fs'
 
-const COMMAND_NAME = "/pedido baianinho"
+const COMMAND_NAMES = ["/pedido baianinho", "/pedido", "/sticker"]
 
 const MESSAGE_TYPES = ['imageMessage', 'videoMessage']
 
@@ -18,7 +18,7 @@ const messageResolver = async (sock, m) => {
     const messageType = MESSAGE_TYPES.find(t => t === Object.keys(messageData.message)[0])
     
     // se for imagem com o comando correto inserido como legenda
-    if (messageType && messageData.message[messageType].caption == COMMAND_NAME) {
+    if (messageType && COMMAND_NAME.includes(messageData.message[messageType].caption)) {
       await replyStickerFromImage(sock, messageData, messageType)
     } 
 
