@@ -6,11 +6,11 @@ import makeWASocket, {
 	DisconnectReason
 } from '@whiskeysockets/baileys';
 import P from 'pino'
-import messageResolver from './../messager/index.js'
+import messageResolver from '../messager/index.js'
 import fs from 'fs'
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { emitter } from './../../server.js'
+import { emitter } from '../../server.js'
 
 const logger = P({ timestamp: () => `,"time":"${new Date().toJSON()}"` }, P.destination('./wa-logs.txt'))
 logger.level = 'trace'

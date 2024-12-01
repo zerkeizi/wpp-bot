@@ -18,7 +18,7 @@ const messageResolver = async (sock, m) => {
     const messageType = MESSAGE_TYPES.find(t => t === Object.keys(messageData.message)[0])
     
     // se for imagem com o comando correto inserido como legenda
-    if (messageType && COMMAND_NAME.includes(messageData.message[messageType].caption)) {
+    if (messageType && COMMAND_NAMES.includes(messageData.message[messageType].caption)) {
       await replyStickerFromImage(sock, messageData, messageType)
     } 
 
