@@ -15,8 +15,8 @@
   import { io } from "https://cdn.socket.io/4.7.5/socket.io.esm.min.js";
   import { components } from "/js/scripts.js";
 
-  const socket = io('https://wpp-bot-production.up.railway.app/');
-  // const socket = io('ws:///');
+  // const socket = io('https://wpp-bot-production.up.railway.app/');
+  const socket = io('ws:///');
 
   
   socket.on('qr.update', (data) => {

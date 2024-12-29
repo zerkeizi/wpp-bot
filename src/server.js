@@ -8,12 +8,18 @@ import qrcode from 'qrcode'
 import { Server } from "socket.io";
 import fs from 'fs'
 
+import ffmpegInstaller from '@ffmpeg-installer/ffmpeg';
+import ffmpeg from 'fluent-ffmpeg';
+
+ffmpeg.setFfmpegPath(ffmpegInstaller.path);
+
 // Init server config
 const PORT = process.env.PORT || 8080;
 const app = express();
 const server = http.createServer(app);
 // app.use(express.json());
 app.use(express.static('public'))
+
 
 const io = new Server(server, {
   // options
