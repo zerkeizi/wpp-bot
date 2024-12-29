@@ -27,55 +27,22 @@ const messageResolver = async (sock, m) => {
   }
 }
 
-// const replyStickerFromImage = async (sock, messageData, messageType) => {
-//   const mediaData = await getMedia(messageData, messageType)
-//   const stickerOptions = {
-//     pack: 'só curtição', // pack name
-//     author: 'baianinho', // author name
-//     type: StickerTypes.FULL, // FULL | CROPPED
-//     quality: 50, // The quality of the output file
-//   }
-
-//   const content = await createSticker(mediaData, stickerOptions)
-//   if (content) {
-//     await sock.sendMessage(
-//       messageData.key.remoteJid, {
-//       sticker: content
-//     })
-//   }
-// }
-
-// const replyStickerFromVideo = async (sock, messageData, messageType) => {
-  
-//   const mediaData = await getMedia(messageData, messageType)
-
-//   const stickerOptions = {
-//     pack: 'só curtição', // pack name
-//     author: 'baianinho', // author name
-//     type: StickerTypes.CROPPED, // FULL | CROPPED
-//     quality: 30, // The quality of the output file
-//   }
-
-//   const sticker = await createSticker(mediaData, stickerOptions)
-
-//   if (sticker) {
-//     try {
-//       await sock.sendMessage(
-//         messageData.key.remoteJid, {
-//         sticker: sticker
-//       })
-//     } catch (e) {
-//       console.error(e)
-//     } 
-//   }
-// }
-
-const mediaToSticker = async (sock, messageData, messageType) => {
-  const mediaData = await getMedia(messageData, messageType)
+const mediaToSticker = async (messageData, messageType) => {
+  let mediaData = null
+  try {
+    mediaData = await getMedia(messageData, messageType)
+  } catch (e) {
+    console.error('Erro na getMedia', e)
+  }
 
   const options = getOptions(messageType)
 
-  return await createSticker(mediaData, stickerOptions)
+  try {
+    return await createSticker(mediaData, options)
+  } catch (e) {
+    console.error('Erro na createSticker', e)
+    return 
+  }
 }
 
 const getMedia = async (data, type) => {
