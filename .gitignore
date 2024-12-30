@@ -8,3 +8,4 @@ sess_auth_info
 .env
 .vscode
 wa-logs.txt
+public/js/globals.js

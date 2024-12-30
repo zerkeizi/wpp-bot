@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <script type="module" src="js/scripts.js"></script>
+  <script type="module" src="js/index.js"></script>
   <link rel="stylesheet" href="css/style.css">
   <title>Autozap ⚡</title>
 </head>
@@ -13,12 +13,15 @@
 </body>
 <script defer type="module">
   import { io } from "https://cdn.socket.io/4.7.5/socket.io.esm.min.js";
-  import { components } from "/js/scripts.js";
+  import { components, globals } from "/js/index.js";
 
-  // const socket = io('https://wpp-bot-production.up.railway.app/');
-  const socket = io('ws:///');
+  let socket = null
+  if (globals.SOCKET_URL) {
+    socket = io(globals.SOCKET_URL)
+  } else {
+    throw new Error('globals.SOCKET_URL not set!')
+  }
 
-  
   socket.on('qr.update', (data) => {
     const status = JSON.parse(localStorage.getItem("status") || '{}')
     status.connection = data.connection ?? status.connection
