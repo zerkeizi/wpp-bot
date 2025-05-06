@@ -62,8 +62,8 @@ const getMedia = async (data, type) => {
  */
 const getOptions = (messageType) => {  
   const generalOptions = {
-    pack: 'só curtição', // pack name
-    author: 'baianinho', // author name
+    pack: 'maizena, berbigão e javascript', // pack name
+    author: '@nisquas', // author name
   }
   const staticOptions = {
     ...generalOptions,
