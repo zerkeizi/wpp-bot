@@ -1,109 +1,50 @@
 // @ts-nocheck
 import express from 'express';
-import http from 'http'
-import { connectToWhatsApp } from './useCases/connection/index.js';
+import http from 'http';
 import path from 'path';
-import { fileURLToPath } from 'url'
-import qrcode from 'qrcode'
-import { Server } from "socket.io";
-import fs from 'fs'
+import { fileURLToPath } from 'url';
+import { Server } from 'socket.io';
 
+import { createWhatsAppSocket } from './zap/connect.js';
+import { registerRoutes } from './routes.js';
+import { setupSocket } from './socket.js';
 import ffmpegInstaller from '@ffmpeg-installer/ffmpeg';
 import ffmpeg from 'fluent-ffmpeg';
 
-ffmpeg.setFfmpegPath(ffmpegInstaller.path);
+// Init paths
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// Init server config
+// App setup
 const PORT = process.env.PORT || 8080;
 const app = express();
 const server = http.createServer(app);
-app.use(express.static('public'))
-
-
 const io = new Server(server, {
-  // options
-  cors: { origin: "*" }
+	cors: { origin: '*' },
 });
 
-// Client routes
-const __root = path.dirname(fileURLToPath(import.meta.url))
-app.get("/", async (req, res) => {
-  
-  res.sendFile('index.html', { root: path.join(__root, 'client') })
-})
+// Middleware
+app.use(express.static('public'));
 
-app.post("/kill", async (req, res) => {
-  killWPSession()
-})
+// Routes
+registerRoutes(app, __dirname);
 
-app.post("/reconnect", async (req, res) => {
-  // Connect websocket lib instance
-  await connectToWhatsApp()
-})
+// Sockets
+setupSocket(io);
 
-// GLOBALS
-let lastestQRCode = undefined
-let clientSocket = null
+// FFmpeg setup
+ffmpeg.setFfmpegPath(ffmpegInstaller.path);
 
-// Establish WS connections
-io.on('connection', (socket) => {
-  clientSocket = socket
-  console.log('user connected');
-
-  // Evento de abertura do client
-  socket.on('qr.first', () => {
-    const clientFirstRenderValues = {}
-    clientFirstRenderValues.qr = lastestQRCode
-    if (!existSession()) {
-      console.log('there is no session currently.')
-      clientFirstRenderValues.connection = "close"
-    }
-    updateClient(clientFirstRenderValues)
-  });
-
-  socket.on('disconnect', () => {
-    console.log('user disconnected');
-  });
-
-})
-
-// Server running
+// Start server
 server.listen(PORT, () => {
-  console.log(`Servidor rodando na porta ${PORT}`);
+	console.log(`Servidor rodando na porta ${PORT}`);
 });
 
-const updateClient = (content) => {
-  // update global variables
-  lastestQRCode = content?.qr
+// Start WhatsApp connection
+await createWhatsAppSocket();
 
-  if (clientSocket) {
-    qrcode.toDataURL(lastestQRCode || '', (err, url) => { 
-      content.qr = url ?? undefined 
-      clientSocket.emit('qr.update', content)
-    })
-  }
-}
-
-// Start autozap instance
-await connectToWhatsApp()
-
-// # UTILS
-const __authCredDir = path.relative(process.cwd(), "sess_auth_info");
-
-// Check if there is an existent session directory
-const existSession = () => {
-  return fs.existsSync(__authCredDir)
-}
-
-// Kill session by deleting its directory
-const killWPSession = () => {
-  lastestQRCode = undefined
-  fs.rmSync(__authCredDir, { recursive: true, force: true });
-  console.log('Connection closed. You are logged out.')
-}
-
+// Export emitter for use across modules
+import { updateClient, killWPSession } from './session.js';
 export const emitter = {
-  updateClient,
-  killWPSession
-}
-
+	updateClient,
+	killWPSession,
+};
