@@ -1,4 +1,3 @@
-// @ts-nocheck
 import express from 'express';
 import http from 'http';
 import path from 'path';
@@ -43,8 +42,7 @@ server.listen(PORT, () => {
 await createWhatsAppSocket();
 
 // Export emitter for use across modules
-import { updateClient, killWPSession } from './session.js';
-export const emitter = {
-	updateClient,
-	killWPSession,
-};
+// export const emitter = {
+// 	updateClient,
+// 	killWPSession,
+// };

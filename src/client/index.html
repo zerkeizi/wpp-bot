@@ -1,62 +1,66 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <script type="module" src="js/index.js"></script>
-  <link rel="stylesheet" href="css/style.css">
-  <title>Autozap ⚡</title>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<script type="module" src="js/index.js"></script>
+	<link rel="stylesheet" href="css/style.css">
+	<title>Autozap ⚡</title>
 </head>
+
 <body>
-  <div id="root">
-  </div>
+	<div id="root">
+	</div>
 </body>
 <script defer type="module">
-  import { io } from "https://cdn.socket.io/4.7.5/socket.io.esm.min.js";
-  import { components, globals } from "/js/index.js";
+	import { io } from "https://cdn.socket.io/4.7.5/socket.io.esm.min.js";
+	import { components, globals } from "/js/index.js";
 
-  let socket = null
-  if (globals.SOCKET_URL) {
-    socket = io(globals.SOCKET_URL)
-  } else {
-    throw new Error('globals.SOCKET_URL not set!')
-  }
+	let socket = null;
+	if (globals.SOCKET_URL) {
+		socket = io(globals.SOCKET_URL);
+	} else {
+		throw new Error('globals.SOCKET_URL not set!');
+	}
 
-  socket.on('qr.update', (data) => {
-    const status = JSON.parse(localStorage.getItem("status") || '{}')
-    status.connection = data.connection ?? status.connection
-    status.qr = data.qr
-    status.isOnline = data.isOnline ?? status.isOnline
-    localStorage.setItem("status", JSON.stringify(status));
-    render(status)
-  })
+	socket.on('qr.update', (data) => {
+		const status = JSON.parse(localStorage.getItem("status") || '{}');
+		status.connection = data.connection ?? status.connection;
+		status.qr = data.qr;
+		status.isOnline = data.isOnline ?? status.isOnline;
+		localStorage.setItem("status", JSON.stringify(status));
+		render(status);
+	});
 
-  function render(props) {
-    console.log(props)
-    const rootEl = document.getElementById("root")
-    if (props.connection == "open") { // Connected
-      rootEl.replaceChildren(components.connected)
-    } else if (props.connection == "close") { // Closed
-      rootEl.replaceChildren(components.closed)
-    } else if (props.connection == "connecting" && props.qr) { // Not connected / QR Ready
-      rootEl.innerHTML = `<img src="${props.qr}" alt="" srcset="">`
-    } else { // Connecting
-      rootEl.replaceChildren(components.connecting)
-    }
-  }
+	/* Logic of component rendering */
+	function render(props) {
+		console.log(props);
+		const rootEl = document.getElementById("root");
+		if (props.connection == "open") { // Connected
+			rootEl.replaceChildren(components.connected);
+		} else if (props.connection == "close") { // Closed
+			rootEl.replaceChildren(components.closed);
+		} else if (props.connection == "connecting" && props.qr) { // Not connected / QR Ready
+			rootEl.innerHTML = `<img src="${props.qr}" alt="" srcset="">`;
+		} else { // Connecting
+			rootEl.replaceChildren(components.connecting);
+		}
+	}
 
-  document.addEventListener('DOMContentLoaded', () => {
-    if (localStorage.getItem("status") === null) {
-      const status = {
-        connection: null,
-        qr: null,
-        isOnline: null
-      }
-      localStorage.setItem("status", JSON.stringify(status));
-    }
-    
-    socket.emit('qr.first')
-  }, false);
+	document.addEventListener('DOMContentLoaded', () => {
+		if (localStorage.getItem("status") === null) {
+			const status = {
+				connection: null,
+				qr: null,
+				isOnline: null
+			};
+			localStorage.setItem("status", JSON.stringify(status));
+		}
+
+		socket.emit('qr.first');
+	}, false);
 
 </script>
+
 </html>

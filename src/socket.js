@@ -1,5 +1,4 @@
-// @ts-nocheck
-import { existSession } from './session.js';
+import * as session from './session.js';
 import qrcode from 'qrcode';
 
 let clientSocket = null;
@@ -13,7 +12,7 @@ export const setupSocket = (io) => {
 		socket.on('qr.first', () => {
 			const payload = {
 				qr: lastestQRCode,
-				connection: existSession() ? 'open' : 'close'
+				connection: session.exists() ? 'open' : 'close'
 			};
 			updateClient(payload);
 		});

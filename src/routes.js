@@ -1,7 +1,7 @@
-// @ts-nocheck
 import path from 'path';
 import { createWhatsAppSocket } from './zap/connect.js';
-import { emitter } from './server.js';
+import * as session from './session.js';
+// import { emitter } from './server.js';
 
 export const registerRoutes = (app, rootDir) => {
 	app.get('/', (req, res) => {
@@ -9,7 +9,7 @@ export const registerRoutes = (app, rootDir) => {
 	});
 
 	app.post('/kill', (req, res) => {
-		emitter.killWPSession();
+		session.kill();
 		res.status(200).send({ success: true, message: 'Session killed' });
 	});
 

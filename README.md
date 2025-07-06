@@ -17,7 +17,6 @@ pnpm dev
 ```
 
 # BASIC STRUCTURE
-├── public/
 ├── src/
 │   ├── routes.js
 │   ├── server.js
@@ -30,4 +29,15 @@ pnpm dev
 │   │     └──connect.js
 │		│	    └──listener.js
 ├── sess_auth_info/
+├── public/
+├── scripts/
 ├── package.json
+├── jsconfig.json
+├── pnpm-lock.yaml
+
+
+! ISSUES da nova estrutura de pastas
+
+1. Depois de logar da primeira vez, preciso encerrar o projeto e restartar pra então conseguir conectar de fato
+2. Ele fica tentando sincronizar ainda
+3. Não tá desconectando pela ação de desconectar dispositivo no zap

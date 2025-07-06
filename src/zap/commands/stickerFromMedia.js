@@ -25,6 +25,7 @@ const stickerFromMedia = async (sock, m) => {
 					sticker
 				});
 			}
+			console.info('[stickerFromMedia] Sticker sent.');
 			return true;
 		} catch (e) {
 			console.error('[stickerFromMedia] Error sending sticker:', e);

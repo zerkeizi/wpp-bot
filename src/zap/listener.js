@@ -1,24 +1,26 @@
-// @ts-nocheck
 import { DisconnectReason } from '@whiskeysockets/baileys';
 import commands from './commands/index.js';
-import { emitter } from './../server.js';
-
-// import { connectToWhatsApp } from './connect.js'; // optional, for reconnecting
+import * as session from './../session.js';
+import { updateClient } from '../socket.js';
+import { createWhatsAppSocket } from './connect.js';
 
 export const attachSocketListeners = (sock, saveCreds) => {
 	sock.ev.process(async (events) => {
 		if (events['connection.update']) {
 			const update = events['connection.update'];
 			const { connection, lastDisconnect, qr, isOnline, isNewLogin } = update;
-			emitter.updateClient({ connection, qr, isOnline, isNewLogin });
+
+			updateClient({ connection, qr, isOnline, isNewLogin });
 
 			if (connection === 'close') {
 				if ((lastDisconnect?.error)?.output?.statusCode !== DisconnectReason.loggedOut) {
 					console.log('Trying to reconnect...');
-					// await connectToWhatsApp();
-					emitter.reconnect();
+					await createWhatsAppSocket();
+
+					// TODO: reconnect();
 				} else {
-					emitter.killWPSession();
+					console.log(this);
+					// session.kill();
 				}
 			}
 		}
@@ -28,7 +30,7 @@ export const attachSocketListeners = (sock, saveCreds) => {
 		}
 
 		if (events['messages.upsert']) {
-			await stickerFromMedia(sock, events['messages.upsert']);
+			await commands.stickerFromMedia(sock, events['messages.upsert']);
 		}
 	});
 };
