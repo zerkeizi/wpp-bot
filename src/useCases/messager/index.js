@@ -8,9 +8,10 @@ const COMMAND_NAMES = ["/pedido baianinho", "/pedido", "/sticker"];
 const MESSAGE_TYPES = ['imageMessage', 'videoMessage'];
 
 const messageResolver = async (sock, m) => {
-	if (m.type == "notify") {
+	if (m.type != "notify") return;
 
-		const messageData = m.messages[0];
+	// an upsert can carry several messages at once (common in busy groups)
+	for (const messageData of m.messages) {
 		const messageType = MESSAGE_TYPES.find(t => t === Object.keys(messageData.message)[0]);
 
 		// se for imagem com o comando correto inserido como legenda
