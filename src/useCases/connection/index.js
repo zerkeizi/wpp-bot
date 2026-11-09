@@ -35,6 +35,29 @@ export const connectToWhatsApp = () => {
 	return pendingConnection
 }
 
+// log out: unlink this device from the WhatsApp account, close the socket and delete the session
+export const logoutFromWhatsApp = async () => {
+	if (pendingConnection) await pendingConnection.catch(() => {})
+
+	const sock = currentSock
+	// detach first, so the socket's own 'close' event is ignored and doesn't trigger a reconnect
+	currentSock = null
+	connectionState = 'close'
+
+	if (sock) {
+		try {
+			await sock.logout()
+		} catch (e) {
+			// not connected (e.g. still waiting for the QR scan): just close it
+			console.warn('Logout request failed, closing socket', e?.message)
+			sock.end(undefined)
+		}
+	}
+
+	emitter.killWPSession()
+	emitter.updateClient({ connection: 'close' })
+}
+
 const createSocket = async () => {
 	const { state, saveCreds } = await useMultiFileAuthState('sess_auth_info')
 

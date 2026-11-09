@@ -1,7 +1,7 @@
 // @ts-nocheck
 import express from 'express';
 import http from 'http'
-import { connectToWhatsApp } from './useCases/connection/index.js';
+import { connectToWhatsApp, logoutFromWhatsApp } from './useCases/connection/index.js';
 import path from 'path';
 import { fileURLToPath } from 'url'
 import qrcode from 'qrcode'
@@ -33,7 +33,8 @@ app.get("/", async (req, res) => {
 })
 
 app.post("/kill", async (req, res) => {
-  killWPSession()
+  await logoutFromWhatsApp()
+  res.sendStatus(204)
 })
 
 app.post("/reconnect", async (req, res) => {
