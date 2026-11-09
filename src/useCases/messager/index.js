@@ -14,29 +14,57 @@ const messageResolver = async (sock, m) => {
 	for (const messageData of m.messages) {
 		// a failure on one message must not drop the rest of the batch
 		try {
-			// unwraps ephemeral (disappearing messages) and view once wrappers
-			const content = normalizeMessageContent(messageData.message);
-			// no content: message stubs or messages that failed to decrypt
-			if (!content) continue;
-			// skips extra keys like senderKeyDistributionMessage / messageContextInfo
-			const messageType = MESSAGE_TYPES.find(t => t === getContentType(content));
+			const request = findStickerRequest(messageData.message);
+			if (!request) continue;
 
-			// se for imagem com o comando correto inserido como legenda
-			if (COMMAND_NAMES.includes(content[messageType]?.caption)) {
-
-				const sticker = await mediaToSticker(content[messageType], messageType);
-				if (sticker) {
-					await sock.sendMessage(
-						messageData.key.remoteJid, {
-						sticker
-					});
-				}
+			const sticker = await mediaToSticker(request.media, request.type);
+			if (sticker) {
+				await sock.sendMessage(
+					messageData.key.remoteJid, {
+					sticker
+				});
 			}
 		} catch (e) {
 			console.error('Erro ao processar mensagem', messageData.key?.id, e);
 		}
 	}
 };
+
+/**
+ * Returns { media, type } when the message asks for a sticker, otherwise null. Accepts:
+ * - an image/video whose caption is a command
+ * - a text reply with a command, quoting an image/video
+ */
+const findStickerRequest = (message) => {
+	// unwraps ephemeral (disappearing messages) and view once wrappers
+	const content = normalizeMessageContent(message);
+	// no content: message stubs or messages that failed to decrypt
+	if (!content) return null;
+	// skips extra keys like senderKeyDistributionMessage / messageContextInfo
+	const type = getContentType(content);
+
+	// se for imagem com o comando correto inserido como legenda
+	if (MESSAGE_TYPES.includes(type)) {
+		return isCommand(content[type].caption) ? { media: content[type], type } : null;
+	}
+
+	// resposta com o comando a uma imagem/vídeo
+	const text = type === 'conversation' ? content.conversation : content.extendedTextMessage?.text;
+	if (!isCommand(text)) return null;
+
+	const quoted = normalizeMessageContent(content.extendedTextMessage?.contextInfo?.quotedMessage);
+	const quotedType = getContentType(quoted);
+	return MESSAGE_TYPES.includes(quotedType) ? { media: quoted[quotedType], type: quotedType } : null;
+};
+
+// Ignores case, extra whitespace and @mentions
+const normalizeCommand = (text) => (text || '')
+	.replace(/@\S+/g, ' ')
+	.replace(/\s+/g, ' ')
+	.trim()
+	.toLowerCase();
+
+const isCommand = (text) => COMMAND_NAMES.includes(normalizeCommand(text));
 
 const mediaToSticker = async (media, messageType) => {
 	let mediaData = null;
