@@ -13,21 +13,51 @@ const messageResolver = async (sock, m) => {
 	// an upsert can carry several messages at once (common in busy groups)
 	for (const messageData of m.messages) {
 		// a failure on one message must not drop the rest of the batch
+		let request;
 		try {
-			const request = findStickerRequest(messageData.message);
-			if (!request) continue;
-
-			const sticker = await mediaToSticker(request.media, request.type);
-			if (sticker) {
-				await sock.sendMessage(
-					messageData.key.remoteJid, {
-					sticker
-				});
-			}
+			request = findStickerRequest(messageData.message);
 		} catch (e) {
 			console.error('Erro ao processar mensagem', messageData.key?.id, e);
+			continue;
 		}
+		if (!request) continue;
+
+		// not awaited: a slow conversion must not hold up later messages/events
+		runLimited(() => replyWithSticker(sock, messageData, request))
+			.catch(e => console.error('Erro ao enviar sticker', messageData.key?.id, e));
 	}
+};
+
+const replyWithSticker = async (sock, messageData, request) => {
+	const sticker = await mediaToSticker(request.media, request.type);
+	if (sticker) {
+		await sock.sendMessage(
+			messageData.key.remoteJid, {
+			sticker
+		});
+	}
+};
+
+// Sticker conversion (especially ffmpeg for videos) is CPU heavy: cap how many run at once
+const MAX_CONCURRENT_STICKERS = 2;
+let activeJobs = 0;
+const pendingJobs = [];
+
+const runLimited = (job) => new Promise((resolve, reject) => {
+	pendingJobs.push({ job, resolve, reject });
+	runNextJob();
+});
+
+const runNextJob = () => {
+	if (activeJobs >= MAX_CONCURRENT_STICKERS || pendingJobs.length === 0) return;
+	const { job, resolve, reject } = pendingJobs.shift();
+	activeJobs++;
+	job()
+		.then(resolve, reject)
+		.finally(() => {
+			activeJobs--;
+			runNextJob();
+		});
 };
 
 /**

@@ -62,13 +62,15 @@ const createSocket = async () => {
 			// ignore late events from a socket that has been replaced
 			if (sock !== currentSock) return
 
-			console.log('Triggering event', events)
 			// something about the connection changed
 			// maybe it closed, or we received all offline message or connection opened
 			if (events['connection.update']) {
 				const update = events['connection.update']
 				const { connection, lastDisconnect, qr, isOnline, isNewLogin } = update
-				if (connection) connectionState = connection
+				if (connection) {
+					connectionState = connection
+					console.log('WhatsApp connection:', connection)
+				}
 				emitter.updateClient({ connection, qr, isOnline, isNewLogin })
 
 				if (connection === 'close') {
@@ -90,9 +92,9 @@ const createSocket = async () => {
         await saveCreds()
       }
 
-      // MESSAGES
+      // MESSAGES (sticker generation runs in the background, see messager)
       if (events['messages.upsert']) {
-        await messageResolver(sock, events['messages.upsert'])
+        messageResolver(sock, events['messages.upsert'])
       }
       
 		}
