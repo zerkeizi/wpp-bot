@@ -20,7 +20,7 @@ pnpm start      # node src/server.js
 ```
 
 - Copy `.env.default` to `.env` and set `AUTOZAP_SOCKET_URL` (the Socket.IO URL the browser client connects to). `scripts/generate.sh` reads `.env` and writes the gitignored `public/js/globals.js`; without it the web client throws `globals.SOCKET_URL not set!`.
-- `PORT` env var sets the HTTP port (default 8080). Note `.env` is not loaded into the Node process — it is only consumed by `generate.sh`.
+- `PORT` env var sets the HTTP port (default 8080); `WA_LOG_LEVEL` sets the Baileys log level written to `wa-logs.txt` (default `info`, use `trace` to debug Baileys). Note `.env` is not loaded into the Node process — it is only consumed by `generate.sh`.
 - ffmpeg is bundled via `@ffmpeg-installer/ffmpeg` (configured in `server.js`), needed for animated stickers.
 
 ## Architecture
@@ -33,7 +33,7 @@ pnpm start      # node src/server.js
 ### Runtime state (all gitignored)
 
 - `sess_auth_info/` — WhatsApp session credentials. Its existence is how the server decides whether a session exists; deleting it logs out.
-- `wa-logs.txt` — Baileys trace-level pino log.
+- `wa-logs.txt` — Baileys pino log (level from `WA_LOG_LEVEL`).
 
 `src/utils/logger.js` and `utils/logger.js` are duplicate, currently unused pino loggers.
 

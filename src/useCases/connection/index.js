@@ -13,7 +13,8 @@ import { fileURLToPath } from 'url';
 import { emitter } from '../../server.js'
 
 const logger = P({ timestamp: () => `,"time":"${new Date().toJSON()}"` }, P.destination('./wa-logs.txt'))
-logger.level = 'trace'
+// 'trace' logs every signal key operation (huge in large groups); set WA_LOG_LEVEL=trace to debug Baileys
+logger.level = process.env.WA_LOG_LEVEL || 'info'
 
 // Only one WhatsApp socket may exist at a time: two sockets with the same credentials
 // make WhatsApp disconnect one of them ("connection replaced")
