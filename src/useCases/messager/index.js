@@ -12,21 +12,28 @@ const messageResolver = async (sock, m) => {
 
 	// an upsert can carry several messages at once (common in busy groups)
 	for (const messageData of m.messages) {
-		// unwraps ephemeral (disappearing messages) and view once wrappers
-		const content = normalizeMessageContent(messageData.message);
-		// skips extra keys like senderKeyDistributionMessage / messageContextInfo
-		const messageType = MESSAGE_TYPES.find(t => t === getContentType(content));
+		// a failure on one message must not drop the rest of the batch
+		try {
+			// unwraps ephemeral (disappearing messages) and view once wrappers
+			const content = normalizeMessageContent(messageData.message);
+			// no content: message stubs or messages that failed to decrypt
+			if (!content) continue;
+			// skips extra keys like senderKeyDistributionMessage / messageContextInfo
+			const messageType = MESSAGE_TYPES.find(t => t === getContentType(content));
 
-		// se for imagem com o comando correto inserido como legenda
-		if (COMMAND_NAMES.includes(content[messageType]?.caption)) {
+			// se for imagem com o comando correto inserido como legenda
+			if (COMMAND_NAMES.includes(content[messageType]?.caption)) {
 
-			const sticker = await mediaToSticker(content[messageType], messageType);
-			if (sticker) {
-				await sock.sendMessage(
-					messageData.key.remoteJid, {
-					sticker
-				});
+				const sticker = await mediaToSticker(content[messageType], messageType);
+				if (sticker) {
+					await sock.sendMessage(
+						messageData.key.remoteJid, {
+						sticker
+					});
+				}
 			}
+		} catch (e) {
+			console.error('Erro ao processar mensagem', messageData.key?.id, e);
 		}
 	}
 };
