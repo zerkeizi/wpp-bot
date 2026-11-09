@@ -37,8 +37,9 @@ app.post("/kill", async (req, res) => {
 })
 
 app.post("/reconnect", async (req, res) => {
-  // Connect websocket lib instance
+  // Connect websocket lib instance (no-op if already connected/connecting)
   await connectToWhatsApp()
+  res.sendStatus(204)
 })
 
 // GLOBALS
