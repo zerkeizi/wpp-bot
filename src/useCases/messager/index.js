@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { downloadContentFromMessage, extractMessageContent, downloadMediaMessage } from '@whiskeysockets/baileys';
+import { downloadContentFromMessage, getContentType, normalizeMessageContent } from '@whiskeysockets/baileys';
 import { createSticker, StickerTypes, Sticker } from 'wa-sticker-formatter';
 import fs from 'fs';
 
@@ -12,12 +12,15 @@ const messageResolver = async (sock, m) => {
 
 	// an upsert can carry several messages at once (common in busy groups)
 	for (const messageData of m.messages) {
-		const messageType = MESSAGE_TYPES.find(t => t === Object.keys(messageData.message)[0]);
+		// unwraps ephemeral (disappearing messages) and view once wrappers
+		const content = normalizeMessageContent(messageData.message);
+		// skips extra keys like senderKeyDistributionMessage / messageContextInfo
+		const messageType = MESSAGE_TYPES.find(t => t === getContentType(content));
 
 		// se for imagem com o comando correto inserido como legenda
-		if (COMMAND_NAMES.includes(messageData.message[messageType]?.caption)) {
+		if (COMMAND_NAMES.includes(content[messageType]?.caption)) {
 
-			const sticker = await mediaToSticker(messageData, messageType);
+			const sticker = await mediaToSticker(content[messageType], messageType);
 			if (sticker) {
 				await sock.sendMessage(
 					messageData.key.remoteJid, {
@@ -28,10 +31,10 @@ const messageResolver = async (sock, m) => {
 	}
 };
 
-const mediaToSticker = async (messageData, messageType) => {
+const mediaToSticker = async (media, messageType) => {
 	let mediaData = null;
 	try {
-		mediaData = await getMedia(messageData, messageType);
+		mediaData = await getMedia(media, messageType);
 	} catch (e) {
 		console.error('Erro na getMedia', e);
 	}
@@ -46,8 +49,8 @@ const mediaToSticker = async (messageData, messageType) => {
 	}
 };
 
-const getMedia = async (data, type) => {
-	const stream = await downloadContentFromMessage(data?.message[type], type.replace('Message', ''));
+const getMedia = async (media, type) => {
+	const stream = await downloadContentFromMessage(media, type.replace('Message', ''));
 	let buffer = Buffer.from([]);
 	for await (const chunk of stream) {
 		buffer = Buffer.concat([buffer, chunk]);
