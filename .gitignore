@@ -1,5 +1,6 @@
 # Folders
 node_modules
+preview
 dist
 baileys_auth_info
 sess_auth_info

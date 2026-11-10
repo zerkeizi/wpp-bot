@@ -21,6 +21,8 @@ pnpm test       # parser + sticker tests (runs real ffmpeg on test/fixtures; ~15
 pnpm test:watch
 pnpm test:search   # live Bing scraping test, kept out of `pnpm test` (network)
 node --test --test-name-pattern="gif" "test/*.test.js"   # run matching tests only
+pnpm preview                              # build example stickers into preview/ (gitignored) + index.html gallery
+pnpm preview photo.jpg -t "Oh my" -b GOD  # own file, same flags as the bot command; -s <terms> searches Bing
 ```
 
 - Tests call `buildSticker` (`src/useCases/sticker/index.js`) and `parseCommand` directly, no WhatsApp needed. `test/helpers/webp.js` inspects sticker output (size, animated, frames, EXIF) without adding sharp as a dependency. Fixture media is synthetic; `test/fixtures/README.md` has the ffmpeg commands to regenerate it.
