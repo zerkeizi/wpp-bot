@@ -16,26 +16,32 @@ const STICKER_METADATA = {
  * @param {string} params.ext file extension of the media (jpeg, png, mp4, gif...), helps ffmpeg
  * @param {{ topText?: string, bottomText?: string, textColor?: string, outlineColor?: string }} [params.text]
  *   outlined text, only supported for images
+ * @param {string} [params.id] sticker pack id stored in the metadata. Random when omitted, so
+ *   the same input gives different bytes each time; WhatsApp tells stickers apart by their file
+ *   hash, so pass a fixed id for stickers that must always be "the same sticker"
  * @returns {Promise<Buffer>} webp sticker
  */
-export const buildSticker = async ({ buffer, kind, ext, text }) => {
+export const buildSticker = async ({ buffer, kind, ext, text, id }) => {
 	if (kind === 'video' || kind === 'gif') {
 		if (text) throw new Error('Text is only supported on images');
 		// square animated webp + StickerTypes.FULL: wa-sticker-formatter never runs its own
 		// ffmpeg (crop/videoToGif), which crashes the process on bad input
-		return createSticker(await toAnimatedWebp(buffer, ext), getOptions(true));
+		return createSticker(await toAnimatedWebp(buffer, ext), getOptions(true, id));
 	}
 
 	const image = text ? await addTextToImage(buffer, ext, text) : buffer;
-	return createSticker(image, getOptions(false));
+	return createSticker(image, getOptions(false, id));
 };
 
 /**
+ * Returns a new object every call: createSticker writes the generated id back into it
  * @param {boolean} isAnimated
+ * @param {string} [id]
  * @returns {Object} options for createSticker second parameter
  */
-const getOptions = (isAnimated) => ({
+const getOptions = (isAnimated, id) => ({
 	...STICKER_METADATA,
+	...(id && { id }),
 	// FULL for both: images keep their aspect ratio (transparent padding), animated input is
 	// already square. CROPPED would make wa-sticker-formatter run ffmpeg itself (see above)
 	type: StickerTypes.FULL,

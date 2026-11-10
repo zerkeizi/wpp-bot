@@ -45,6 +45,8 @@ Send the command in the caption of an image/video, or as a reply to one. `/stick
 
 Videos and GIFs become animated stickers (first 10 seconds).
 
+When something goes wrong (unknown flag, no image, nothing found…), the bot replies to your message with the "nau cunsigui." sticker. It's always the same sticker, so it doesn't fill people's sticker lists. The exact reason is printed in the bot's log; `/sticker -h` shows how to use the command.
+
 ## Development
 
 ### Tests
@@ -75,3 +77,13 @@ pnpm preview -s cat with sunglasses        # -s needs no file: searches Bing lik
 ```
 
 The sticker is saved in `preview/` (not committed). Open `preview/index.html` in a browser to see every sticker you've previewed, on a checkerboard background where transparency is visible.
+
+### Reply stickers
+
+The error reply sticker is made from `assets/image/nau_cunsigui.png`. After adding or changing an image in `assets/image/`, run:
+
+```bash
+pnpm stickers:build    # writes assets/stickers/<name>.webp
+```
+
+and commit the generated `.webp`. The bot sends that exact file, so WhatsApp keeps treating it as the same sticker. Regenerating an unchanged image prints `unchanged`. If it prints `CHANGED`, WhatsApp will see a new sticker, so only commit that when you meant to change it.

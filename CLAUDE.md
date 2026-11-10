@@ -23,6 +23,7 @@ pnpm test:search   # live Bing scraping test, kept out of `pnpm test` (network)
 node --test --test-name-pattern="gif" "test/*.test.js"   # run matching tests only
 pnpm preview <file> [flags]               # sticker from a file you choose -> preview/ (gitignored) + index.html gallery
 pnpm preview -s <terms>                   # same, from a Bing search; flags are the bot command's flags
+pnpm stickers:build                       # assets/image/* -> assets/stickers/*.webp (reply stickers; commit the output)
 ```
 
 - Tests call `buildSticker` (`src/useCases/sticker/index.js`) and `parseCommand` directly, no WhatsApp needed. `test/helpers/webp.js` inspects sticker output (size, animated, frames, EXIF) without adding sharp as a dependency. Fixture media is synthetic; `test/fixtures/README.md` has the ffmpeg commands to regenerate it.
@@ -37,7 +38,8 @@ pnpm preview -s <terms>                   # same, from a Bing search; flags are 
 - **`src/useCases/connection/index.js`** — owns the single Baileys socket (`currentSock`); `connectToWhatsApp()` is a no-op while one is open or being opened, because two sockets on the same session make WhatsApp kick one ("connection replaced"). Persists auth via `useMultiFileAuthState('sess_auth_info')`. Events: `connection.update` → forwards state/QR to the browser via `emitter.updateClient` and auto-reconnects, except on `loggedOut` (→ `killWPSession`) or `connectionReplaced` (another instance took over; reconnecting would ping-pong); events from a replaced socket are ignored. `creds.update` → save creds; `messages.upsert` → `messageResolver` (not awaited). Imports `emitter` from `server.js`, so there is a **circular import** — keep `emitter` access inside callbacks, not at module top level.
 - **`src/useCases/messager/`** — commands.
   - `commandParser.js`: a message is a command only if it **starts** with `/pedido` or `/sticker` (aliases; case-insensitive; leading @mentions skipped). The rest is parsed as CLI flags with `node:util` `parseArgs` (strict) after normalizing smart quotes; double quotes group words. Flags: `-s/--search`, `-t/--top-text`, `-b/--bottom-text`, `--text-color`, `--outline-color`, `-h/--help`. New flags go in `OPTIONS` + `USAGE` (+ `validateFlags`). Colors are validated by regex because they are interpolated into the ffmpeg filter string.
-  - `index.js`: processes every message of an upsert batch (each in its own try/catch), unwraps ephemeral/view-once with Baileys' `normalizeMessageContent`/`getContentType`, and takes media from the message or from the quoted message (reply). `handleCommand` routes: parse error/help → text reply; `-s` → search; media → sticker. Text flags only apply to provided images (not videos, not `-s`). Work runs through `runLimited` (max 2 concurrent conversions); failures reply "Não consegui criar o sticker.".
+  - `index.js`: processes every message of an upsert batch (each in its own try/catch), unwraps ephemeral/view-once with Baileys' `normalizeMessageContent`/`getContentType`, and takes media from the message or from the quoted message (reply). `handleCommand` routes: help → text reply; `-s` → search; media → sticker. Text flags only apply to provided images (not videos, not `-s`). Work runs through `runLimited` (max 2 concurrent conversions). **Every error** (bad command, no media, nothing found, conversion failure…) is answered by `replyError`: the reason goes only to the log and the reply is the fixed `assets/stickers/nau_cunsigui.webp`, sent byte for byte.
+- **Reply stickers / sticker identity** — WhatsApp tells stickers apart by file hash, and wa-sticker-formatter writes a random `sticker-pack-id` into every sticker unless an `id` is given, so the same image normally becomes a "new" sticker each time. Reply stickers are therefore pre-rendered from `assets/image/` with a fixed id (`scripts/build-reply-stickers.js`, `buildSticker({ id })`) and committed; don't generate them at runtime (a sharp/libwebp update could change the bytes). Note `createSticker` writes the generated id back into the options object, so `getOptions` must return a new object per call.
 - **`src/useCases/search/bingImages.js`** — scrapes Bing Images (`/images/async`, `adlt=strict`), parsing the JSON in each result's `m="..."` attribute; tries the original URL then Bing's thumbnail for the first 5 results. Fragile by nature: if Bing changes its markup, this is the file to fix.
 - **`src/useCases/media/index.js`** — our own ffmpeg steps (error handling, timeout, temp dir cleanup), run before `createSticker`:
   - `toAnimatedWebp`: videos/GIFs → square 512×512 animated webp (first 10 s). Animated stickers then use `StickerTypes.FULL`: **don't switch to `CROPPED`** or pass raw video to `createSticker` — wa-sticker-formatter's own ffmpeg calls (`crop`, `videoToGif`) have no error handler and crash the process on bad input.
@@ -54,6 +56,10 @@ pnpm preview -s <terms>                   # same, from a Bing search; flags are 
 ## Deployment
 
 `.github/workflows/deploy.yml` runs on push/PR to `main`, but currently only tests an SSH connection (`whoami`) to the server using `SERVER_HOST`/`SERVER_USER`/`SERVER_PWD` secrets — it does not actually deploy.
+
+## Known issues
+
+- **Animated stickers can exceed WhatsApp's size limit.** WhatsApp is commonly said to cap animated stickers at about 500 KB, and oversized ones may fail to send or show without animation. `toAnimatedWebp` has no size budget: a noisy 10 s video produced a 672 KB sticker (`pnpm preview test/fixtures/clip-12s.mp4`). A fix could retry with lower quality/fps/duration until it fits.
 
 ## Conventions
 

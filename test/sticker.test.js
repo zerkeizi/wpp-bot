@@ -79,3 +79,22 @@ describe('buildSticker: animated', () => {
 		);
 	});
 });
+
+describe('buildSticker: sticker identity (WhatsApp compares stickers by file hash)', () => {
+	it('gives identical bytes for the same input and a fixed id', async () => {
+		const build = () => buildSticker({ buffer: fixture('landscape.jpg'), kind: 'image', ext: 'jpeg', id: 'fixed-id' });
+		assert.deepEqual(await build(), await build());
+	});
+
+	it('gives different bytes without an id (random pack id each time)', async () => {
+		const build = () => buildSticker({ buffer: fixture('landscape.jpg'), kind: 'image', ext: 'jpeg' });
+		assert.notDeepEqual(await build(), await build());
+	});
+});
+
+describe('reply stickers (assets/stickers, built by pnpm stickers:build)', () => {
+	it('the error sticker is a valid committed sticker', () => {
+		const sticker = fs.readFileSync(new URL('../assets/stickers/nau_cunsigui.webp', import.meta.url));
+		assertSticker(sticker, { animated: false });
+	});
+});
