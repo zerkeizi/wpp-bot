@@ -7,7 +7,10 @@
   "scripts": {
     "dev": "node-dev src/server.js",
     "start": "node src/server.js",
-    "generate": "bash ./scripts/generate.sh "
+    "generate": "bash ./scripts/generate.sh ",
+    "test": "node --test \"test/*.test.js\"",
+    "test:watch": "node --test --watch \"test/*.test.js\"",
+    "test:search": "node --test \"test/live/*.test.js\""
   },
   "dependencies": {
     "@ffmpeg-installer/ffmpeg": "^1.1.0",

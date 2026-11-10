@@ -90,7 +90,8 @@ export const parseCommand = (text) => {
 			allowPositionals: true,
 		});
 		const error = validateFlags(values);
-		return error ? { error } : { flags: values, positionals };
+		// parseArgs returns a null-prototype object; hand out a plain one
+		return error ? { error } : { flags: { ...values }, positionals };
 	} catch (e) {
 		return { error: toFriendlyError(e) };
 	}

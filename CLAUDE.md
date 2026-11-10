@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 "Autozap" — a WhatsApp bot built on Baileys (`@whiskeysockets/baileys`). It turns images/videos (or an image found on Bing with `-s`) into WhatsApp stickers, optionally with outlined meme-style text, and serves a small web page that shows the WhatsApp pairing QR code and connection status in real time over Socket.IO.
 
-Plain JavaScript ES modules (`"type": "module"`), no build step, no TypeScript (source files use `// @ts-nocheck`; `jsconfig.json` enables `checkJs`). There are no tests or linter configured.
+Plain JavaScript ES modules (`"type": "module"`), no build step, no TypeScript (source files use `// @ts-nocheck`; `jsconfig.json` enables `checkJs`). Tests use Node's built-in runner (`node:test`, no Jest); no linter is configured.
 
 ## Commands
 
@@ -17,7 +17,13 @@ pnpm install
 pnpm generate   # REQUIRED before first run: builds public/js/globals.js from .env
 pnpm dev        # node-dev with auto-restart
 pnpm start      # node src/server.js
+pnpm test       # parser + sticker tests (runs real ffmpeg on test/fixtures; ~15 s)
+pnpm test:watch
+pnpm test:search   # live Bing scraping test, kept out of `pnpm test` (network)
+node --test --test-name-pattern="gif" "test/*.test.js"   # run matching tests only
 ```
+
+- Tests call `buildSticker` (`src/useCases/sticker/index.js`) and `parseCommand` directly, no WhatsApp needed. `test/helpers/webp.js` inspects sticker output (size, animated, frames, EXIF) without adding sharp as a dependency. Fixture media is synthetic; `test/fixtures/README.md` has the ffmpeg commands to regenerate it.
 
 - Copy `.env.default` to `.env` and set `AUTOZAP_SOCKET_URL` (the Socket.IO URL the browser client connects to). `scripts/generate.sh` reads `.env` and writes the gitignored `public/js/globals.js`; without it the web client throws `globals.SOCKET_URL not set!`.
 - `PORT` env var sets the HTTP port (default 8080); `WA_LOG_LEVEL` sets the Baileys log level written to `wa-logs.txt` (default `info`, use `trace` to debug Baileys). Note `.env` is not loaded into the Node process — it is only consumed by `generate.sh`.
