@@ -1,9 +1,7 @@
 // @ts-nocheck
 import { downloadContentFromMessage, getContentType, normalizeMessageContent } from '@whiskeysockets/baileys';
-import { createSticker, StickerTypes, Sticker } from 'wa-sticker-formatter';
-import fs from 'fs';
-
-const COMMAND_NAMES = ["/pedido baianinho", "/pedido", "/sticker"];
+import { createSticker, StickerTypes } from 'wa-sticker-formatter';
+import { parseCommand, USAGE } from './commandParser.js';
 
 const MESSAGE_TYPES = ['imageMessage', 'videoMessage'];
 
@@ -15,7 +13,7 @@ const messageResolver = async (sock, m) => {
 		// a failure on one message must not drop the rest of the batch
 		let request;
 		try {
-			request = findStickerRequest(messageData.message);
+			request = findCommand(messageData.message);
 		} catch (e) {
 			console.error('Erro ao processar mensagem', messageData.key?.id, e);
 			continue;
@@ -23,10 +21,23 @@ const messageResolver = async (sock, m) => {
 		if (!request) continue;
 
 		// not awaited: a slow conversion must not hold up later messages/events
-		runLimited(() => replyWithSticker(sock, messageData, request))
-			.catch(e => console.error('Erro ao enviar sticker', messageData.key?.id, e));
+		runLimited(() => handleCommand(sock, messageData, request))
+			.catch(e => console.error('Erro ao responder comando', messageData.key?.id, e));
 	}
 };
+
+const NO_MEDIA_HINT = 'Envie o comando na legenda de uma imagem/vídeo ou respondendo a um(a). Use /sticker -h para ver as opções.';
+
+const handleCommand = async (sock, messageData, { command, media }) => {
+	if (command.error) return replyText(sock, messageData, command.error);
+	if (command.flags.help) return replyText(sock, messageData, USAGE);
+	if (!media) return replyText(sock, messageData, NO_MEDIA_HINT);
+
+	await replyWithSticker(sock, messageData, media);
+};
+
+const replyText = (sock, messageData, text) =>
+	sock.sendMessage(messageData.key.remoteJid, { text }, { quoted: messageData });
 
 const replyWithSticker = async (sock, messageData, request) => {
 	const sticker = await mediaToSticker(request.media, request.type);
@@ -61,11 +72,12 @@ const runNextJob = () => {
 };
 
 /**
- * Returns { media, type } when the message asks for a sticker, otherwise null. Accepts:
- * - an image/video whose caption is a command
- * - a text reply with a command, quoting an image/video
+ * Returns { command, media } when the message is a bot command, otherwise null.
+ * - command: result of parseCommand (flags/positionals or error)
+ * - media: { media, type } of the image/video in the message, or in the quoted message
+ *   when it's a text reply; null when there is none
  */
-const findStickerRequest = (message) => {
+const findCommand = (message) => {
 	// unwraps ephemeral (disappearing messages) and view once wrappers
 	const content = normalizeMessageContent(message);
 	// no content: message stubs or messages that failed to decrypt
@@ -73,28 +85,25 @@ const findStickerRequest = (message) => {
 	// skips extra keys like senderKeyDistributionMessage / messageContextInfo
 	const type = getContentType(content);
 
-	// se for imagem com o comando correto inserido como legenda
+	let text;
+	let media = null;
 	if (MESSAGE_TYPES.includes(type)) {
-		return isCommand(content[type].caption) ? { media: content[type], type } : null;
+		// imagem/vídeo com o comando na legenda
+		text = content[type].caption;
+		media = { media: content[type], type };
+	} else {
+		// texto com o comando, possivelmente respondendo a uma imagem/vídeo
+		text = type === 'conversation' ? content.conversation : content.extendedTextMessage?.text;
+		const quoted = normalizeMessageContent(content.extendedTextMessage?.contextInfo?.quotedMessage);
+		const quotedType = getContentType(quoted);
+		if (MESSAGE_TYPES.includes(quotedType)) {
+			media = { media: quoted[quotedType], type: quotedType };
+		}
 	}
 
-	// resposta com o comando a uma imagem/vídeo
-	const text = type === 'conversation' ? content.conversation : content.extendedTextMessage?.text;
-	if (!isCommand(text)) return null;
-
-	const quoted = normalizeMessageContent(content.extendedTextMessage?.contextInfo?.quotedMessage);
-	const quotedType = getContentType(quoted);
-	return MESSAGE_TYPES.includes(quotedType) ? { media: quoted[quotedType], type: quotedType } : null;
+	const command = parseCommand(text);
+	return command ? { command, media } : null;
 };
-
-// Ignores case, extra whitespace and @mentions
-const normalizeCommand = (text) => (text || '')
-	.replace(/@\S+/g, ' ')
-	.replace(/\s+/g, ' ')
-	.trim()
-	.toLowerCase();
-
-const isCommand = (text) => COMMAND_NAMES.includes(normalizeCommand(text));
 
 const mediaToSticker = async (media, messageType) => {
 	let mediaData = null;
