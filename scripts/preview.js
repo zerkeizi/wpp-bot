@@ -1,10 +1,6 @@
-// Builds stickers locally, without WhatsApp, and writes them to preview/ with an index.html
-// gallery to open in the browser.
-//
-//   pnpm preview                               built-in examples from test/fixtures
-//   pnpm preview photo.jpg -t "Oh my" -b GOD   your own file, same flags as the bot command
-//   pnpm preview video.mp4
-//   pnpm preview -s cat with sunglasses        real Bing search, like /pedido -s
+// Builds a sticker from a file you choose (or a Bing search), without WhatsApp, and writes it
+// to preview/ with an index.html gallery to open in the browser. The fixed test media is
+// covered by `pnpm test`; this is for trying your own files.
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -14,34 +10,39 @@ import { searchImages, downloadFirstImage } from '../src/useCases/search/bingIma
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const OUT_DIR = path.join(ROOT, 'preview');
-const FIXTURES = path.join(ROOT, 'test/fixtures');
 
-const EXAMPLES = [
-	{ name: 'landscape-plain', file: 'landscape.jpg', flags: '' },
-	{ name: 'landscape-text', file: 'landscape.jpg', flags: '-t "Oh my" -b "GOD"' },
-	{ name: 'portrait-colors-long-text', file: 'portrait.png', flags: `-t "quando o chefe diz: 'é só 5 minutinhos'" -b "ação 100%" --text-color=yellow --outline-color=purple` },
-	{ name: 'video-animated', file: 'clip-12s.mp4', flags: '' },
-	{ name: 'gif-animated', file: 'animation.gif', flags: '' },
-];
+const HOW_TO_USE = `Usage: pnpm preview <path to image/video/gif> [flags]
+       pnpm preview -s <search terms>
+
+  pnpm preview ~/Pictures/cat.jpg -t "Oh my" -b GOD --text-color=yellow
+  pnpm preview test/fixtures/clip-12s.mp4
+  pnpm preview -s cat with sunglasses
+
+Flags are the same as the bot command (/sticker -h).`;
 
 const VIDEO_EXTS = ['mp4', 'mov', 'webm', 'mkv', '3gp'];
 
 const main = async () => {
-	fs.mkdirSync(OUT_DIR, { recursive: true });
 	const args = process.argv.slice(2);
-
 	if (args.length === 0) {
-		for (const { name, file, flags } of EXAMPLES) {
-			await render(name, path.join(FIXTURES, file), flags);
-		}
-	} else {
-		// first argument is the media file, unless it's a flag (e.g. -s searches)
-		const file = args[0].startsWith('-') ? null : args.shift();
-		// re-quote arguments the shell already split, so the parser sees the same text a user would type
-		const flags = args.map(arg => (/\s/.test(arg) ? `"${arg}"` : arg)).join(' ');
-		const name = file ? path.parse(file).name : `search-${slug(args.filter(a => !a.startsWith('-')).join(' '))}`;
-		await render(name, file && path.resolve(file), flags);
+		console.error(HOW_TO_USE);
+		process.exitCode = 1;
+		return;
 	}
+
+	// first argument is the media file, unless it's a flag (e.g. -s searches)
+	const file = args[0].startsWith('-') ? null : path.resolve(args.shift());
+	if (file && !fs.existsSync(file)) {
+		console.error(`✖ File not found: ${file}\n\n${HOW_TO_USE}`);
+		process.exitCode = 1;
+		return;
+	}
+	// re-quote arguments the shell already split, so the parser sees the same text a user would type
+	const flags = args.map(arg => (/\s/.test(arg) ? `"${arg}"` : arg)).join(' ');
+	const name = file ? path.parse(file).name : `search-${slug(args.filter(a => !a.startsWith('-')).join(' '))}`;
+
+	fs.mkdirSync(OUT_DIR, { recursive: true });
+	await render(name, file, flags);
 
 	writeGallery();
 	console.log(`\nOpen ${path.join(OUT_DIR, 'index.html')} in a browser`);
@@ -66,7 +67,7 @@ const render = async (name, file, flagsText) => {
 		if (!image) return fail(name, `Nenhuma imagem encontrada para "${query}".`);
 		input = { buffer: image.buffer, kind: image.mime === 'image/gif' ? 'gif' : 'image', ext: image.mime.split('/')[1] };
 	} else {
-		if (!file) return fail(name, 'Informe um arquivo ou use -s <termos>.');
+		if (!file) return fail(name, `Missing file path.\n\n${HOW_TO_USE}`);
 		input = { buffer: fs.readFileSync(file), kind, ext: path.extname(file).slice(1).toLowerCase() };
 	}
 
