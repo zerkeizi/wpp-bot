@@ -36,6 +36,34 @@ export const USAGE = [
 ].join('\n');
 
 /**
+ * Text options for buildSticker from parsed flags, or undefined when no text was requested.
+ * @param {Object} flags flags from parseCommand
+ */
+export const getTextOptions = (flags) => {
+	if (flags['top-text'] === undefined && flags['bottom-text'] === undefined) return undefined;
+	return {
+		topText: flags['top-text'],
+		bottomText: flags['bottom-text'],
+		textColor: flags['text-color'],
+		outlineColor: flags['outline-color'],
+	};
+};
+
+/**
+ * Text only works on provided images: not with -s, not on videos.
+ * @param {Object} flags flags from parseCommand
+ * @param {'image' | 'video' | null} mediaKind media in the message, null when there is none
+ * @returns {string | null} error to reply with
+ */
+export const textUsageError = (flags, mediaKind) => {
+	if (!getTextOptions(flags)) return null;
+	if (flags.search || mediaKind === 'video') {
+		return 'Texto (--top-text/--bottom-text) só funciona em imagens enviadas, não em vídeos nem com -s.';
+	}
+	return null;
+};
+
+/**
  * Parses a message text as a bot command.
  * @param {string | undefined} text
  * @returns {null | { flags: Object, positionals: string[] } | { error: string }}

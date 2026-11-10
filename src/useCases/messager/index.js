@@ -1,9 +1,8 @@
 // @ts-nocheck
 import { downloadContentFromMessage, getContentType, normalizeMessageContent } from '@whiskeysockets/baileys';
-import { createSticker, StickerTypes } from 'wa-sticker-formatter';
-import { parseCommand, USAGE } from './commandParser.js';
+import { parseCommand, getTextOptions, textUsageError, USAGE } from './commandParser.js';
 import { searchImages, downloadFirstImage } from '../search/bingImages.js';
-import { toAnimatedWebp, addTextToImage } from '../media/index.js';
+import { buildSticker } from '../sticker/index.js';
 
 const MESSAGE_TYPES = ['imageMessage', 'videoMessage'];
 
@@ -33,34 +32,25 @@ const messageResolver = async (sock, m) => {
 
 const NO_MEDIA_HINT = 'Envie o comando na legenda de uma imagem/vídeo ou respondendo a um(a), ou busque uma imagem com /pedido -s <termos>. Use /sticker -h para ver as opções.';
 
-const TEXT_ONLY_ON_IMAGES = 'Texto (--top-text/--bottom-text) só funciona em imagens enviadas, não em vídeos nem com -s.';
-
 const handleCommand = async (sock, messageData, { command, media }) => {
 	if (command.error) return replyText(sock, messageData, command.error);
 	const { flags } = command;
 	if (flags.help) return replyText(sock, messageData, USAGE);
 
-	const hasText = flags['top-text'] !== undefined || flags['bottom-text'] !== undefined;
-	if (hasText && (flags.search || media?.type === 'videoMessage')) {
-		return replyText(sock, messageData, TEXT_ONLY_ON_IMAGES);
-	}
+	const mediaKind = media ? (media.type === 'videoMessage' ? 'video' : 'image') : null;
+	const textError = textUsageError(flags, mediaKind);
+	if (textError) return replyText(sock, messageData, textError);
 	// -s searches even when there is media in the message
 	if (flags.search) return replyWithSearchedSticker(sock, messageData, command.positionals.join(' '));
 	if (!media) return replyText(sock, messageData, NO_MEDIA_HINT);
 
-	let buffer = await getMedia(media.media, media.type);
-	const isAnimated = media.type === 'videoMessage';
-	if (isAnimated) {
-		buffer = await toAnimatedWebp(buffer, 'mp4');
-	} else if (hasText) {
-		buffer = await addTextToImage(buffer, mimeToExt(media.media.mimetype), {
-			topText: flags['top-text'],
-			bottomText: flags['bottom-text'],
-			textColor: flags['text-color'],
-			outlineColor: flags['outline-color'],
-		});
-	}
-	await replyWithSticker(sock, messageData, buffer, isAnimated);
+	const sticker = await buildSticker({
+		buffer: await getMedia(media.media, media.type),
+		kind: mediaKind,
+		ext: mediaKind === 'video' ? 'mp4' : mimeToExt(media.media.mimetype),
+		text: getTextOptions(flags),
+	});
+	await sendSticker(sock, messageData, sticker);
 };
 
 // image/jpeg -> jpeg; only used to help ffmpeg detect the input format
@@ -78,19 +68,19 @@ const replyWithSearchedSticker = async (sock, messageData, query) => {
 	}
 	if (!image) return replyText(sock, messageData, `Nenhuma imagem encontrada para "${query}".`);
 
-	const isAnimated = image.mime === 'image/gif';
-	const buffer = isAnimated ? await toAnimatedWebp(image.buffer, 'gif') : image.buffer;
-	await replyWithSticker(sock, messageData, buffer, isAnimated);
+	const sticker = await buildSticker({
+		buffer: image.buffer,
+		kind: image.mime === 'image/gif' ? 'gif' : 'image',
+		ext: mimeToExt(image.mime),
+	});
+	await sendSticker(sock, messageData, sticker);
 };
 
 const replyText = (sock, messageData, text) =>
 	sock.sendMessage(messageData.key.remoteJid, { text }, { quoted: messageData });
 
-// animated buffers must already be square webp (toAnimatedWebp), see getOptions
-const replyWithSticker = async (sock, messageData, buffer, isAnimated) => {
-	const sticker = await createSticker(buffer, getOptions(isAnimated));
-	await sock.sendMessage(messageData.key.remoteJid, { sticker });
-};
+const sendSticker = (sock, messageData, sticker) =>
+	sock.sendMessage(messageData.key.remoteJid, { sticker });
 
 // Sticker conversion (especially ffmpeg for videos) is CPU heavy: cap how many run at once
 const MAX_CONCURRENT_STICKERS = 2;
@@ -157,28 +147,4 @@ const getMedia = async (media, type) => {
 	return buffer;
 };
 
-/**
- * @param {boolean} isAnimated video or GIF
- * @returns {Object} options for createSticker second parameter
- */
-const getOptions = (isAnimated) => {
-	const generalOptions = {
-		pack: 'só curtição', // pack name
-		author: 'baianinho', // author name
-	};
-	const staticOptions = {
-		...generalOptions,
-		type: StickerTypes.FULL, // FULL | CROPPED
-		quality: 50, // The quality of the output file
-	};
-	const animatedOptions = {
-		...generalOptions,
-		// FULL, not CROPPED: the input is already square (toAnimatedWebp), and CROPPED makes
-		// wa-sticker-formatter run its own ffmpeg crop, which crashes the process on errors
-		type: StickerTypes.FULL,
-		quality: 30, // The quality of the output file
-	};
-
-	return isAnimated ? animatedOptions : staticOptions;
-};
 export default messageResolver;
