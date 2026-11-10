@@ -6,13 +6,16 @@ const COMMAND_REGEX = /^\/(pedido|sticker)(?=\s|$)/i;
 // Flags accepted after the command (see node:util parseArgs)
 const OPTIONS = {
 	help: { type: 'boolean', short: 'h' },
+	search: { type: 'boolean', short: 's' },
 };
 
 export const USAGE = [
 	'*Como usar*',
 	'Envie /sticker (ou /pedido) na legenda de uma imagem/vídeo, ou respondendo a um(a).',
+	'Ou busque uma imagem na internet: /pedido -s gato rindo',
 	'',
 	'*Opções*',
+	'-s, --search  busca a imagem pelos termos após o comando',
 	'-h, --help  mostra esta ajuda',
 ].join('\n');
 

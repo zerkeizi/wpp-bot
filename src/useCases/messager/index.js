@@ -2,6 +2,7 @@
 import { downloadContentFromMessage, getContentType, normalizeMessageContent } from '@whiskeysockets/baileys';
 import { createSticker, StickerTypes } from 'wa-sticker-formatter';
 import { parseCommand, USAGE } from './commandParser.js';
+import { searchImages, downloadFirstImage } from '../search/bingImages.js';
 
 const MESSAGE_TYPES = ['imageMessage', 'videoMessage'];
 
@@ -26,27 +27,40 @@ const messageResolver = async (sock, m) => {
 	}
 };
 
-const NO_MEDIA_HINT = 'Envie o comando na legenda de uma imagem/vídeo ou respondendo a um(a). Use /sticker -h para ver as opções.';
+const NO_MEDIA_HINT = 'Envie o comando na legenda de uma imagem/vídeo ou respondendo a um(a), ou busque uma imagem com /pedido -s <termos>. Use /sticker -h para ver as opções.';
 
 const handleCommand = async (sock, messageData, { command, media }) => {
 	if (command.error) return replyText(sock, messageData, command.error);
 	if (command.flags.help) return replyText(sock, messageData, USAGE);
+	// -s searches even when there is media in the message
+	if (command.flags.search) return replyWithSearchedSticker(sock, messageData, command.positionals.join(' '));
 	if (!media) return replyText(sock, messageData, NO_MEDIA_HINT);
 
-	await replyWithSticker(sock, messageData, media);
+	const buffer = await getMedia(media.media, media.type);
+	await replyWithSticker(sock, messageData, buffer, media.type === 'videoMessage');
+};
+
+const replyWithSearchedSticker = async (sock, messageData, query) => {
+	if (!query) return replyText(sock, messageData, 'Informe o que buscar, ex: /pedido -s gato rindo');
+
+	let image;
+	try {
+		image = await downloadFirstImage(await searchImages(query));
+	} catch (e) {
+		console.error('Erro na busca de imagens', query, e);
+		return replyText(sock, messageData, 'A busca de imagens está indisponível no momento.');
+	}
+	if (!image) return replyText(sock, messageData, `Nenhuma imagem encontrada para "${query}".`);
+
+	await replyWithSticker(sock, messageData, image.buffer, image.mime === 'image/gif');
 };
 
 const replyText = (sock, messageData, text) =>
 	sock.sendMessage(messageData.key.remoteJid, { text }, { quoted: messageData });
 
-const replyWithSticker = async (sock, messageData, request) => {
-	const sticker = await mediaToSticker(request.media, request.type);
-	if (sticker) {
-		await sock.sendMessage(
-			messageData.key.remoteJid, {
-			sticker
-		});
-	}
+const replyWithSticker = async (sock, messageData, buffer, isAnimated) => {
+	const sticker = await createSticker(buffer, getOptions(isAnimated));
+	await sock.sendMessage(messageData.key.remoteJid, { sticker });
 };
 
 // Sticker conversion (especially ffmpeg for videos) is CPU heavy: cap how many run at once
@@ -105,24 +119,6 @@ const findCommand = (message) => {
 	return command ? { command, media } : null;
 };
 
-const mediaToSticker = async (media, messageType) => {
-	let mediaData = null;
-	try {
-		mediaData = await getMedia(media, messageType);
-	} catch (e) {
-		console.error('Erro na getMedia', e);
-	}
-
-	const options = getOptions(messageType);
-
-	try {
-		return await createSticker(mediaData, options);
-	} catch (e) {
-		console.error('Erro na createSticker', e);
-		return;
-	}
-};
-
 const getMedia = async (media, type) => {
 	const stream = await downloadContentFromMessage(media, type.replace('Message', ''));
 	let buffer = Buffer.from([]);
@@ -133,12 +129,10 @@ const getMedia = async (media, type) => {
 };
 
 /**
- * 
- * @param {string} messageType 
+ * @param {boolean} isAnimated video or GIF
  * @returns {Object} options for createSticker second parameter
- * TODO: after TypeScript implementation, change ternary condition to use types
  */
-const getOptions = (messageType) => {
+const getOptions = (isAnimated) => {
 	const generalOptions = {
 		pack: 'só curtição', // pack name
 		author: 'baianinho', // author name
@@ -154,6 +148,6 @@ const getOptions = (messageType) => {
 		quality: 30, // The quality of the output file
 	};
 
-	return messageType == 'imageMessage' ? staticOptions : animatedOptions;
+	return isAnimated ? animatedOptions : staticOptions;
 };
 export default messageResolver;
