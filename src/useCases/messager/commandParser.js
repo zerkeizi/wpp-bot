@@ -7,7 +7,17 @@ const COMMAND_REGEX = /^\/(pedido|sticker)(?=\s|$)/i;
 const OPTIONS = {
 	help: { type: 'boolean', short: 'h' },
 	search: { type: 'boolean', short: 's' },
+	'top-text': { type: 'string', short: 't' },
+	'bottom-text': { type: 'string', short: 'b' },
+	'text-color': { type: 'string' },
+	'outline-color': { type: 'string' },
 };
+
+const TEXT_FLAGS = ['top-text', 'bottom-text'];
+const COLOR_FLAGS = ['text-color', 'outline-color'];
+const MAX_TEXT_LENGTH = 100;
+// ffmpeg color name or #RRGGBB; also keeps anything else out of the ffmpeg filter string
+const COLOR_REGEX = /^(#[0-9a-f]{6}|[a-z]+)$/i;
 
 export const USAGE = [
 	'*Como usar*',
@@ -16,7 +26,13 @@ export const USAGE = [
 	'',
 	'*Opções*',
 	'-s, --search  busca a imagem pelos termos após o comando',
+	'-t, --top-text="texto"  texto no topo (só imagens enviadas)',
+	'-b, --bottom-text="texto"  texto embaixo (só imagens enviadas)',
+	'--text-color=cor  cor do texto (padrão white). Nome em inglês ou #RRGGBB',
+	'--outline-color=cor  cor do contorno (padrão black)',
 	'-h, --help  mostra esta ajuda',
+	'',
+	'Ex: /sticker -t "Oh my" -b "GOD" --text-color=yellow',
 ].join('\n');
 
 /**
@@ -45,7 +61,8 @@ export const parseCommand = (text) => {
 			strict: true,
 			allowPositionals: true,
 		});
-		return { flags: values, positionals };
+		const error = validateFlags(values);
+		return error ? { error } : { flags: values, positionals };
 	} catch (e) {
 		return { error: toFriendlyError(e) };
 	}
@@ -56,10 +73,28 @@ export const parseCommand = (text) => {
 const tokenize = (input) => (input.match(/(?:[^\s"]+|"[^"]*")+/g) || [])
 	.map(token => token.replace(/"/g, ''));
 
+const validateFlags = (flags) => {
+	for (const name of TEXT_FLAGS) {
+		if (flags[name] === undefined) continue;
+		if (!flags[name].trim()) return `A opção --${name} precisa de um texto.`;
+		if (flags[name].length > MAX_TEXT_LENGTH) return `O texto de --${name} pode ter no máximo ${MAX_TEXT_LENGTH} caracteres.`;
+	}
+	for (const name of COLOR_FLAGS) {
+		if (flags[name] !== undefined && !COLOR_REGEX.test(flags[name])) {
+			return `Cor inválida em --${name}: use um nome em inglês (ex: yellow) ou #RRGGBB.`;
+		}
+	}
+	return null;
+};
+
 const toFriendlyError = (e) => {
 	if (e.code === 'ERR_PARSE_ARGS_UNKNOWN_OPTION') {
 		const option = e.message.match(/'([^']+)'/)?.[1];
 		return `Opção desconhecida: ${option}. Use /sticker -h para ver as opções.`;
+	}
+	if (e.code === 'ERR_PARSE_ARGS_INVALID_OPTION_VALUE') {
+		const option = e.message.match(/--[\w-]+/)?.[0];
+		return `A opção ${option} precisa de um valor. Use /sticker -h para ver as opções.`;
 	}
 	return `Comando inválido. Use /sticker -h para ver as opções.`;
 };

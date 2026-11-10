@@ -3,6 +3,7 @@ import { downloadContentFromMessage, getContentType, normalizeMessageContent } f
 import { createSticker, StickerTypes } from 'wa-sticker-formatter';
 import { parseCommand, USAGE } from './commandParser.js';
 import { searchImages, downloadFirstImage } from '../search/bingImages.js';
+import { toAnimatedWebp, addTextToImage } from '../media/index.js';
 
 const MESSAGE_TYPES = ['imageMessage', 'videoMessage'];
 
@@ -23,22 +24,47 @@ const messageResolver = async (sock, m) => {
 
 		// not awaited: a slow conversion must not hold up later messages/events
 		runLimited(() => handleCommand(sock, messageData, request))
-			.catch(e => console.error('Erro ao responder comando', messageData.key?.id, e));
+			.catch(e => {
+				console.error('Erro ao responder comando', messageData.key?.id, e);
+				replyText(sock, messageData, 'Não consegui criar o sticker.').catch(() => {});
+			});
 	}
 };
 
 const NO_MEDIA_HINT = 'Envie o comando na legenda de uma imagem/vídeo ou respondendo a um(a), ou busque uma imagem com /pedido -s <termos>. Use /sticker -h para ver as opções.';
 
+const TEXT_ONLY_ON_IMAGES = 'Texto (--top-text/--bottom-text) só funciona em imagens enviadas, não em vídeos nem com -s.';
+
 const handleCommand = async (sock, messageData, { command, media }) => {
 	if (command.error) return replyText(sock, messageData, command.error);
-	if (command.flags.help) return replyText(sock, messageData, USAGE);
+	const { flags } = command;
+	if (flags.help) return replyText(sock, messageData, USAGE);
+
+	const hasText = flags['top-text'] !== undefined || flags['bottom-text'] !== undefined;
+	if (hasText && (flags.search || media?.type === 'videoMessage')) {
+		return replyText(sock, messageData, TEXT_ONLY_ON_IMAGES);
+	}
 	// -s searches even when there is media in the message
-	if (command.flags.search) return replyWithSearchedSticker(sock, messageData, command.positionals.join(' '));
+	if (flags.search) return replyWithSearchedSticker(sock, messageData, command.positionals.join(' '));
 	if (!media) return replyText(sock, messageData, NO_MEDIA_HINT);
 
-	const buffer = await getMedia(media.media, media.type);
-	await replyWithSticker(sock, messageData, buffer, media.type === 'videoMessage');
+	let buffer = await getMedia(media.media, media.type);
+	const isAnimated = media.type === 'videoMessage';
+	if (isAnimated) {
+		buffer = await toAnimatedWebp(buffer, 'mp4');
+	} else if (hasText) {
+		buffer = await addTextToImage(buffer, mimeToExt(media.media.mimetype), {
+			topText: flags['top-text'],
+			bottomText: flags['bottom-text'],
+			textColor: flags['text-color'],
+			outlineColor: flags['outline-color'],
+		});
+	}
+	await replyWithSticker(sock, messageData, buffer, isAnimated);
 };
+
+// image/jpeg -> jpeg; only used to help ffmpeg detect the input format
+const mimeToExt = (mime) => mime?.split('/')[1]?.split(';')[0] || 'jpg';
 
 const replyWithSearchedSticker = async (sock, messageData, query) => {
 	if (!query) return replyText(sock, messageData, 'Informe o que buscar, ex: /pedido -s gato rindo');
@@ -52,12 +78,15 @@ const replyWithSearchedSticker = async (sock, messageData, query) => {
 	}
 	if (!image) return replyText(sock, messageData, `Nenhuma imagem encontrada para "${query}".`);
 
-	await replyWithSticker(sock, messageData, image.buffer, image.mime === 'image/gif');
+	const isAnimated = image.mime === 'image/gif';
+	const buffer = isAnimated ? await toAnimatedWebp(image.buffer, 'gif') : image.buffer;
+	await replyWithSticker(sock, messageData, buffer, isAnimated);
 };
 
 const replyText = (sock, messageData, text) =>
 	sock.sendMessage(messageData.key.remoteJid, { text }, { quoted: messageData });
 
+// animated buffers must already be square webp (toAnimatedWebp), see getOptions
 const replyWithSticker = async (sock, messageData, buffer, isAnimated) => {
 	const sticker = await createSticker(buffer, getOptions(isAnimated));
 	await sock.sendMessage(messageData.key.remoteJid, { sticker });
@@ -144,7 +173,9 @@ const getOptions = (isAnimated) => {
 	};
 	const animatedOptions = {
 		...generalOptions,
-		type: StickerTypes.CROPPED, // FULL | CROPPED
+		// FULL, not CROPPED: the input is already square (toAnimatedWebp), and CROPPED makes
+		// wa-sticker-formatter run its own ffmpeg crop, which crashes the process on errors
+		type: StickerTypes.FULL,
 		quality: 30, // The quality of the output file
 	};
 
