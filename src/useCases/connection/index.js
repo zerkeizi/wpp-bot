@@ -73,7 +73,7 @@ const createSocket = async () => {
 			creds: state.creds,
 			keys: makeCacheableSignalKeyStore(state.keys, logger)
 		},
-		shouldSyncHistoryMessage: false,
+		//shouldSyncHistoryMessage: false,
 		syncFullHistory: false,
 	})
 	currentSock = sock
